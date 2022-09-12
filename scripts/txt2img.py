@@ -23,9 +23,9 @@ from transformers import AutoFeatureExtractor
 
 
 # load safety model
-safety_model_id = "CompVis/stable-diffusion-safety-checker"
-safety_feature_extractor = AutoFeatureExtractor.from_pretrained(safety_model_id)
-safety_checker = StableDiffusionSafetyChecker.from_pretrained(safety_model_id)
+# safety_model_id = "CompVis/stable-diffusion-safety-checker"
+# safety_feature_extractor = AutoFeatureExtractor.from_pretrained(safety_model_id)
+# safety_checker = StableDiffusionSafetyChecker.from_pretrained(safety_model_id)
 
 
 def chunk(it, size):
@@ -214,6 +214,11 @@ def main():
         help="path to checkpoint of model",
     )
     parser.add_argument(
+        "--nsfw",
+        action='store_true',
+        help="disable NSFW checking",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -233,6 +238,12 @@ def main():
         opt.config = "configs/latent-diffusion/txt2img-1p4B-eval.yaml"
         opt.ckpt = "models/ldm/text2img-large/model.ckpt"
         opt.outdir = "outputs/txt2img-samples-laion400m"
+
+    if not opt.nsfw:
+        safety_model_id = "CompVis/stable-diffusion-safety-checker"
+        safety_feature_extractor = AutoFeatureExtractor.from_pretrained(safety_model_id)
+        safety_checker = StableDiffusionSafetyChecker.from_pretrained(safety_model_id)
+        pass
 
     seed_everything(opt.seed)
 
@@ -306,7 +317,10 @@ def main():
                         x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                         x_samples_ddim = x_samples_ddim.cpu().permute(0, 2, 3, 1).numpy()
 
-                        x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
+                        if not opt.nsfw:
+                            x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
+                        else:
+                            x_checked_image = x_samples_ddim
 
                         x_checked_image_torch = torch.from_numpy(x_checked_image).permute(0, 3, 1, 2)
 
